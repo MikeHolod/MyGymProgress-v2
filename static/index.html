@@ -1,1 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>MyGymProgress</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body { font-family: Arial; margin:20px; }
+button { padding: 10px 15px; margin:5px; }
+input { width: 50px; }
+</style>
+</head>
+<body>
+<h1>MyGymProgress</h1>
+
+<div id="main-menu">
+  <button onclick="showNewWorkout()">Новая тренировка</button>
+  <button onclick="showHistory()">История тренировок</button>
+</div>
+
+<div id="new-workout" style="display:none;">
+  <h2>Новая тренировка</h2>
+  <label>Название: <input id="exercise-name"></label><br><br>
+  <label>Группа мышц: 
+    <select id="muscle-group">
+      <option>Грудь</option>
+      <option>Спина</option>
+      <option>Ноги</option>
+      <option>Плечи</option>
+      <option>Бицепс</option>
+      <option>Трицепс</option>
+      <option>Пресс</option>
+    </select>
+  </label>
+  <div id="sets-container"></div>
+  <button onclick="addSet()">Добавить подход</button>
+  <button onclick="saveWorkout()">Сохранить тренировку</button>
+  <button onclick="backMenu()">Назад</button>
+</div>
+
+<div id="history" style="display:none;">
+  <h2>История тренировок</h2>
+  <ul id="history-list"></ul>
+  <button onclick="backMenu()">Назад</button>
+</div>
+
+<script>
+let sets = JSON.parse(localStorage.getItem('currentSets')||'[]');
+
+function showNewWorkout() {
+  document.getElementById('main-menu').style.display='none';
+  document.getElementById('new-workout').style.display='block';
+  renderSets();
+}
+
+function showHistory() {
+  fetch('/api/init', {method:'POST', headers:{'Content-Type':'application/json'}})
+    .then(r=>r.json())
+    .then(data=>{
+      let list = document.getElementById('history-list');
+      list.innerHTML='';
+      data.history.forEach(h=>{
+        let li=document.createElement('li');
+        li.textContent=`${h.date} - ${h.name} - ${h.total}`;
+        list.appendChild(li);
+      });
+    });
+  document.getElementById('main-menu').style.display='none';
+  document.getElementById('history').style.display='block';
+}
+
+function backMenu() {
+  document.getElementById('main-menu').style.display='block';
+  document.getElementById('new-workout').style.display='none';
+  document.getElementById('history').style.display='none';
+}
+
+function addSet() {
+  sets.push({reps:0, weight:0});
+  renderSets();
+}
+
+function renderSets() {
+  localStorage.setItem('currentSets', JSON.stringify(sets));
+  let container=document.getElementById('sets-container');
+  container.innerHTML='';
+  sets.forEach((s,i)=>{
+    container.innerHTML+=`Подход ${i+1}: Повторы <input type="number" value="${s.reps}" onchange="sets[${i}].reps=this.value;saveLocal()"> Вес <input type="number" value="${s.weight}" onchange="sets[${i}].weight=this.value;saveLocal()"><br>`;
+  });
+}
+
+function saveLocal() {
+  localStorage.setItem('currentSets', JSON.stringify(sets));
+}
+
+function saveWorkout() {
+  let name=document.getElementById('exercise-name').value||'Без названия';
+  let muscle=document.getElementById('muscle-group').value;
+  fetch('/api/log', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name,muscle_group:muscle,sets,initData:{user:{id:'anon'}}})
+  }).then(r=>r.json())
+    .then(d=>{
+      alert('Тренировка сохранена!');
+      sets=[];
+      localStorage.setItem('currentSets','[]');
+      backMenu();
+    });
+}
+renderSets();
+</script>
+</body>
+</html>
 
